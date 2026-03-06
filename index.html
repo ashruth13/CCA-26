@@ -38,7 +38,6 @@
       flex-direction: column;
     }
 
-    /* Top bar */
     .topbar {
       background: linear-gradient(90deg, #1e293b 0%, #334155 100%);
       padding: 12px 20px;
@@ -54,7 +53,6 @@
       text-align: center;
     }
 
-    /* Main content fills remaining space */
     .content {
       flex: 1;
       padding: 16px 20px;
@@ -276,14 +274,24 @@ function rgbToHex(r,g,b){return'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,v)).to
 function isValidHex(h){return/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(h);}
 function isValidRgb(s){const p=s.split(',').map(x=>x.trim());return p.length===3&&p.every(v=>{const n=parseInt(v,10);return!isNaN(n)&&n>=0&&n<=255;});}
 function luminance({r,g,b}){const[lr,lg,lb]=[r,g,b].map(c=>{const s=c/255;return s<=0.04045?s/12.92:Math.pow((s+0.055)/1.055,2.4);});return 0.2126*lr+0.7152*lg+0.0722*lb;}
-function contrastRatio(h1,h2){const l1=luminance(hexToRgb(h1)),l2=luminance(hexToRgb(h2));const[lt,dk]=l1>l2?[l1,l2]:[l2,l1];return+((lt+0.05)/(dk+0.05)).toFixed(2);}
+function contrastRatio(h1,h2){const l1=luminance(hexToRgb(h1)),l2=luminance(hexToRgb(h2));const[lt,dk]=l1>l2?[l1,l2]:[l2,l1];return+((lt+0.05)/(dk+0.05)).toFixed(3);}
 
 let fgHex='#000000',bgHex='#FFFFFF';
 
 function syncFg(hex){fgHex=hex.toUpperCase();const{r,g,b}=hexToRgb(fgHex);document.getElementById('fg-hex').value=fgHex;document.getElementById('fg-rgb').value=`${r}, ${g}, ${b}`;document.getElementById('fg-swatch').style.background=fgHex;updatePreview();updateRatio();}
 function syncBg(hex){bgHex=hex.toUpperCase();const{r,g,b}=hexToRgb(bgHex);document.getElementById('bg-hex').value=bgHex;document.getElementById('bg-rgb').value=`${r}, ${g}, ${b}`;document.getElementById('bg-swatch').style.background=bgHex;updatePreview();updateRatio();}
 function updatePreview(){document.getElementById('preview-box').style.background=isValidHex(bgHex)?bgHex:'#fff';document.getElementById('preview-small').style.color=isValidHex(fgHex)?fgHex:'#000';document.getElementById('preview-large').style.color=isValidHex(fgHex)?fgHex:'#000';}
-function updateRatio(){if(isValidHex(fgHex)&&isValidHex(bgHex)){const r=contrastRatio(fgHex,bgHex);document.getElementById('ratio-display').textContent=r+':1';setCell('aa-small',r>=4.5);setCell('aa-large',r>=3);setCell('aaa-small',r>=7);setCell('aaa-large',r>=4.5);}else{document.getElementById('ratio-display').textContent='—';['aa-small','aa-large','aaa-small','aaa-large'].forEach(id=>{const td=document.getElementById(id);td.className='';td.textContent='—';});}}
+function updateRatio(){
+  if(isValidHex(fgHex)&&isValidHex(bgHex)){
+    const r=contrastRatio(fgHex,bgHex);
+    const display = r.toFixed(2);
+    document.getElementById('ratio-display').textContent=display+':1';
+    setCell('aa-small',r>=4.5);setCell('aa-large',r>=3);setCell('aaa-small',r>=7);setCell('aaa-large',r>=4.5);
+  }else{
+    document.getElementById('ratio-display').textContent='—';
+    ['aa-small','aa-large','aaa-small','aaa-large'].forEach(id=>{const td=document.getElementById(id);td.className='';td.textContent='—';});
+  }
+}
 function setCell(id,pass){const td=document.getElementById(id);td.className=pass?'pass-cell':'fail-cell';td.textContent=pass?'PASS':'FAIL';}
 
 document.getElementById('fg-hex').addEventListener('input',e=>{let v=e.target.value.toUpperCase();if(!v.startsWith('#'))v='#'+v;e.target.value=v;if(isValidHex(v))syncFg(v);});
