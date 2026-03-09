@@ -131,6 +131,11 @@
       border: 1.5px solid #d1d5db; border-radius: 6px;
       background: #fff; color: #111827; outline: none; font-family: inherit;
     }
+    /* Accessible focus indicator for the Criteria dropdown — 3:1 contrast (#1d4ed8 on #fff) */
+    .criteria-row select:focus {
+      outline: 3px solid #1d4ed8;
+      outline-offset: 2px;
+    }
     .copy-btn {
       width: 34px; height: 32px; border-radius: 6px;
       border: 1.5px solid #d1d5db; background: #fff;
@@ -217,8 +222,9 @@
   </div>
 
   <div class="criteria-row">
+    <!-- Change 4: label text now includes "Criteria" explicitly; id/for linkage preserved -->
     <label for="criteria-select">Criteria</label>
-    <select id="criteria-select" aria-label="Select WCAG criteria"></select>
+    <select id="criteria-select" aria-label="Criteria — select WCAG criteria"></select>
     <div class="sr-only" aria-live="polite" id="criteria-announce"></div>
     <button class="copy-btn" id="copy-btn" aria-label="Copy to clipboard">
       <svg id="copy-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
@@ -244,22 +250,28 @@
 
 <script>
 const CRITERIA = [
+  // 1.4.1 group — Background, Border, + new Text Color Change (Change 1)
   { label: "1.4.1 a - Focus Indicator (Background)", msg: "The focus indicator relies only on background color change and fails to meet the required color contrast ratio of 3:1 with the default color.", header: "Contrast Details", c1: "Background color in Focused state", c2: "Background color in Default state" },
   { label: "1.4.1 a - Focus Indicator (Border)", msg: "The focus indicator relies only on border color change and fails to meet the required color contrast ratio of 3:1 with the default color.", header: "Contrast Details", c1: "Border color in Focused state", c2: "Border color in Default state" },
+  // Change 1: new 3rd option for 1.4.1 a
+  { label: "1.4.1 a - Focus Indicator (Text Color)", msg: "The focus indicator relies only on text color change and fails to meet the required color contrast ratio of 3:1 with the default color.", header: "Contrast Details", c1: "Text color on focused state", c2: "Text color in default state" },
   { label: "1.4.1 b - Link Contrast", msg: "The link text for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the adjacent text color.", header: "Contrast Details", c1: "Link text color", c2: "Surrounding text color" },
   { label: "1.4.3 a - Regular Text", msg: "The above-mentioned elements lack the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details", c1: "Foreground text color", c2: "Background color" },
   { label: "1.4.3 a - Placeholder Text", msg: "The above-mentioned placeholder text lacks the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details", c1: "Placeholder text color", c2: "Background color" },
-  { label: "1.4.3 a - Link or Button Text (Hover / Focus)", msg: "The above-mentioned elements on focus / hover lacks the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details on hover/ on focus", c1: "Link or button text color", c2: "Background color" },
+  // Change 2: updated label from "Link or Button Text (Hover / Focus)" + updated c1 label
+  { label: "1.4.3 a - Link or Button Text (Hover / Focus)", msg: "The above-mentioned elements on focus / hover lacks the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details on hover/ on focus", c1: "Text color", c2: "Background color" },
   { label: "1.4.3 a - Regular Text (Gradient)", msg: "The above-mentioned elements lack the required color contrast ratio of 4.5:1 with the gradient background color.", header: "Contrast Details", c1: "Foreground text color", c2: "Background (Gradient) color" },
   { label: "1.4.3 b - Large Text", msg: "The above-mentioned elements lack the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Foreground text color", c2: "Background color" },
   { label: "1.4.3 b - Large Link or Button Text (Hover / Focus)", msg: "The above-mentioned elements on hover/on focus lack the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details on hover/ on focus", c1: "Foreground text color", c2: "Background color" },
   { label: "1.4.3 b - Large Text (Gradient)", msg: "The above-mentioned elements lack the required color contrast ratio of 3:1 with the gradient background.", header: "Contrast Details", c1: "Foreground text color", c2: "Background (Gradient) color" },
   { label: "1.4.11 a - Visual Boundary (Inner)", msg: "The visual boundary of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Visual boundary color", c2: "Inner adjacent color" },
   { label: "1.4.11 a - Visual Boundary (Outer)", msg: "The visual boundary of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Visual boundary color", c2: "Outer adjacent color" },
+  { label: "1.4.11 a - Visual Boundary (Switch button)", msg: "The visual boundary of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: null, c1: "Visual boundary color", c2: "Outer adjacent color", slider: true },
   { label: "1.4.11 b - Focus Indicator (Inner)", msg: "The focus indicator for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Focus indicator color", c2: "Inner adjacent color" },
   { label: "1.4.11 b - Focus Indicator (Outer)", msg: "The focus indicator for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Focus indicator color", c2: "Outer adjacent color" },
   { label: "1.4.11 b - Selected State", msg: "The selected state of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the adjacent color.", header: "Contrast Details", c1: "Selected state color", c2: "Adjacent color" },
-  { label: "1.4.11 b - Icon on Hover", msg: "The above-mentioned icon element does not meet the required color contrast ratio of 3:1 with the background.", header: "Contrast Details on hover", c1: "Icon color", c2: "Adjacent background color" },
+  // Change 3: updated description for Icon on Hover — "on hover/ focus" phrasing
+  { label: "1.4.11 b - Icon on Hover", msg: "The above-mentioned icon on hover/ focus does not meet the required color contrast ratio of 3:1 with the background.", header: "Contrast Details on hover/ focus", c1: "Icon color", c2: "Adjacent background color" },
   { label: "1.4.11 c - Icons", msg: "The above-mentioned icon element does not meet the required color contrast ratio of 3:1 with the background.", header: "Contrast Details", c1: "Icon color", c2: "Adjacent background color" },
   { label: "1.4.11 c - Graphical Object", msg: "The above-mentioned graphical objects fail to meet the required 3:1 color contrast ratio with the background color.", header: "Contrast Details", c1: "Graphical object color", c2: "Adjacent color" },
   { label: "General", msg: null, header: "Contrast Details", c1: "Foreground color", c2: "Background color" },
@@ -267,7 +279,7 @@ const CRITERIA = [
 
 const sel = document.getElementById('criteria-select');
 CRITERIA.forEach((c,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=c.label; sel.appendChild(o); });
-sel.addEventListener('change',()=>{ document.getElementById('criteria-announce').textContent=CRITERIA[sel.value].label+' selected'; });
+sel.addEventListener('change',()=>{ document.getElementById('criteria-announce').textContent='Criteria: '+CRITERIA[sel.value].label+' selected'; });
 
 function hexToRgb(hex){hex=hex.replace(/^#/,'');if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');const n=parseInt(hex,16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255};}
 function rgbToHex(r,g,b){return'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('').toUpperCase();}
@@ -306,7 +318,12 @@ document.getElementById('bg-eye').addEventListener('click',()=>pick(syncBg));
 document.getElementById('copy-btn').addEventListener('click',()=>{
   const c=CRITERIA[sel.value];
   const ratio=document.getElementById('ratio-display').textContent;
-  const txt=c.msg?`Description of the issue: ${c.msg}\n\n${c.header}\n${c.c1}: ${fgHex}\n${c.c2}: ${bgHex}\nContrast Ratio: ${ratio}`:`${c.header}\n${c.c1}: ${fgHex}\n${c.c2}: ${bgHex}\nContrast Ratio: ${ratio}`;
+  let txt;
+  if(c.slider){
+    txt=`Description of the issue: ${c.msg}\n\nContrast Details of circular boundary\n${c.c1}: ${fgHex}\n${c.c2}: ${bgHex}\nContrast Ratio: ${ratio}\n\nContrast Details of rectangular boundary\n${c.c1}: \n${c.c2}: \nContrast Ratio: `;
+  } else {
+    txt=c.msg?`Description of the issue: ${c.msg}\n\n${c.header}\n${c.c1}: ${fgHex}\n${c.c2}: ${bgHex}\nContrast Ratio: ${ratio}`:`${c.header}\n${c.c1}: ${fgHex}\n${c.c2}: ${bgHex}\nContrast Ratio: ${ratio}`;
+  }
   navigator.clipboard.writeText('\n'+txt).catch(()=>{const ta=document.createElement('textarea');ta.value='\n'+txt;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);});
   const btn=document.getElementById('copy-btn');btn.classList.add('copied');
   btn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
