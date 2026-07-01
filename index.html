@@ -1,18 +1,30 @@
 <!DOCTYPE html>
-<!-- saved from url=(0050)file:///C:/Users/DQ_Ashruth/Downloads/index_7.html -->
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Color Contrast Analyzer</title>
-  <link rel="icon" type="image/png" href="file:///C:/Users/DQ_Ashruth/Downloads/logo.png">
-  <link rel="apple-touch-icon" href="file:///C:/Users/DQ_Ashruth/Downloads/logo.png">
-  <meta name="application-name" content="CCA">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="CCA">
-  <meta name="theme-color" content="#1e293b">
-  <meta name="mobile-web-app-capable" content="yes">
+
+  <!-- All asset references use relative paths only (no local machine paths) -->
+  <link rel="icon" type="image/png" href="./logo.png" />
+  <link rel="apple-touch-icon" href="./logo.png" />
+
+  <meta name="application-name" content="CCA" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CCA" />
+  <meta name="theme-color" content="#1e293b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
   <script>
+    /**
+     * Builds a Web App Manifest on the fly (as a Blob) and injects it as a
+     * <link rel="manifest"> tag. This lets the app be installable as a PWA
+     * without needing a separate manifest.json file to host.
+     * This is the ONLY place a manifest <link> tag is created — do not add
+     * a second manifest <link> tag anywhere else in the document, or the
+     * browser will register a duplicate.
+     */
     const manifest = {
       name: "Color Contrast Analyzer",
       short_name: "CCA",
@@ -22,11 +34,13 @@
       theme_color: "#1e293b",
       icons: [{ src: "./logo.png", sizes: "192x192", type: "image/png" }]
     };
-    const blob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
-    const link = document.createElement('link');
-    link.rel = 'manifest'; link.href = URL.createObjectURL(blob);
-    document.currentScript.after(link);
-  </script><link rel="manifest" href="blob:null/dc2fd860-a0d5-49a0-b17d-1ce4f3f194fc">
+    const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+    const manifestLink = document.createElement('link');
+    manifestLink.rel = 'manifest';
+    manifestLink.href = URL.createObjectURL(manifestBlob);
+    document.currentScript.after(manifestLink);
+  </script>
+
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -86,11 +100,23 @@
       color: #111827; background: #fff;
     }
     .input-group input:focus { border-color: #1d4ed8; outline: 3px solid #1d4ed8; outline-offset: 2px; }
+    .hex-input { width: 96px; }
+    .rgb-input { width: 106px; }
     .color-row { display: flex; align-items: center; gap: 8px; }
+
+    /*
+      The swatch's color is data-driven (any hex the user types or picks),
+      so it cannot be a fixed CSS class value. Rather than setting a raw
+      inline `style="background: ..."` attribute from JS, we expose a CSS
+      custom property (--swatch-bg) that this class consumes. JS only ever
+      sets the custom property; the styling rule itself stays in CSS.
+    */
     .swatch {
       width: 48px; height: 36px; border-radius: 6px;
       border: 1.5px solid #6b7280;
+      background: var(--swatch-bg, #ffffff);
     }
+
     .eyedropper-btn {
       width: 36px; height: 36px; border-radius: 6px;
       border: 1.5px solid #6b7280; background: #f9fafb;
@@ -124,7 +150,7 @@
     /* Lightness slider — thin track, thumb overflows freely at edges */
     .lightness-slider-wrap {
       position: relative;
-      /* Extra vertical space so thumb (taller than track) doesn't get clipped */
+      /* Extra vertical space so the thumb (taller than the track) doesn't get clipped */
       height: 32px;
       cursor: pointer;
       /* NO overflow:hidden — thumb sits proud of the track at 0% and 100% */
@@ -134,7 +160,12 @@
       outline: 3px solid #1d4ed8;
       outline-offset: 2px;
     }
-    /* Thin gradient track — vertically centred in the wrap */
+    /*
+      Thin gradient track, vertically centered in the wrap. The gradient
+      itself changes with the current hue/saturation, so it's driven by
+      the --track-gradient custom property (set from JS) instead of an
+      inline style attribute.
+    */
     .lightness-slider-track {
       position: absolute;
       left: 0; right: 0;
@@ -143,6 +174,7 @@
       transform: translateY(-50%);
       border-radius: 3px;
       border: 1px solid #9ca3af;
+      background: var(--track-gradient, linear-gradient(to right, #000 0%, #808080 50%, #fff 100%));
     }
     /* Native input — covers full wrap height for easy clicking */
     .lightness-slider-input {
@@ -157,10 +189,16 @@
       appearance: none;
       z-index: 2;
     }
-    /* Thumb — taller than the track, sits proud, rectangle with border */
+    /*
+      Thumb — taller than the track, sits proud, rectangle with border.
+      Horizontal position is data-driven (the current lightness %), so it's
+      exposed as the --thumb-left custom property rather than an inline
+      `style="left: ..."` attribute.
+    */
     .lightness-slider-thumb {
       position: absolute;
       top: 50%;
+      left: var(--thumb-left, 0%);
       width: 16px;
       height: 26px;
       transform: translate(-50%, -50%);
@@ -171,12 +209,24 @@
       z-index: 1;
     }
 
+    /*
+      Same custom-property pattern as .swatch: the preview box's background
+      and the preview text color change with user input, so they're driven
+      through --preview-bg / --preview-fg rather than inline style attributes.
+    */
     .preview-box {
       padding: 14px 0; border-bottom: 1px solid #e4e7ec;
       text-align: center;
+      background: var(--preview-bg, #ffffff);
     }
-    .preview-small { font-size: 12px; margin-bottom: 4px; }
-    .preview-large { font-size: 26px; font-weight: 800; }
+    .preview-small {
+      font-size: 12px; margin-bottom: 4px;
+      color: var(--preview-fg, #000000);
+    }
+    .preview-large {
+      font-size: 26px; font-weight: 800;
+      color: var(--preview-fg, #000000);
+    }
 
     .ratio-box {
       text-align: center; padding: 14px 0;
@@ -187,6 +237,11 @@
       font-size: 11px; font-weight: 700; color: #374151;
       letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px;
     }
+    /*
+      NOTE: .ratio-value never has a hardcoded number in the markup below.
+      Its text content is always written by updateRatio() at runtime, based
+      on the actual foreground/background hex values the user has entered.
+    */
     .ratio-value {
       font-size: 56px; font-weight: 500; color: #111827;
       line-height: 1; letter-spacing: -2px;
@@ -197,6 +252,12 @@
       padding: 12px 0; border-bottom: 1px solid #e4e7ec;
     }
     .criteria-row label { font-size: 12px; font-weight: 600; color: #374151; white-space: nowrap; }
+    .criteria-col { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .copy-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .field-label {
+      font-size: 11px; font-weight: 600; color: #374151;
+      letter-spacing: 0.2px; text-transform: uppercase;
+    }
     .criteria-row select {
       flex: 1; font-size: 13px; padding: 6px 8px;
       border: 1.5px solid #6b7280; border-radius: 6px;
@@ -240,18 +301,18 @@
     <div class="inputs-row">
       <div class="input-group">
         <label for="fg-hex">Hex</label>
-        <input id="fg-hex" type="text" maxlength="7" value="#000000" style="width:96px" aria-label="Foreground hex">
+        <input id="fg-hex" type="text" maxlength="7" value="#000000" class="hex-input" aria-label="Foreground hex"/>
       </div>
       <div class="input-group">
         <label for="fg-rgb">rgb</label>
-        <input id="fg-rgb" type="text" value="0, 0, 0" style="width:106px" aria-label="Foreground RGB">
+        <input id="fg-rgb" type="text" value="0, 0, 0" class="rgb-input" aria-label="Foreground RGB"/>
       </div>
       <div class="input-group">
         <span>Color</span>
         <div class="color-row">
-          <div class="swatch" id="fg-swatch" role="img" aria-label="Foreground color preview" style="background: rgb(0, 0, 0);"></div>
+          <div class="swatch" id="fg-swatch" role="img" aria-label="Foreground color preview"></div>
           <button class="eyedropper-btn" id="fg-eye" aria-label="Pick foreground color">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           </button>
         </div>
       </div>
@@ -261,21 +322,21 @@
       <div class="lightness-row-header">
         <!-- Distinct visible label per slider (SC 2.4.6) -->
         <label for="fg-lightness">Adjust Lightness</label>
-        <!-- aria-live so SR users hear the value update without being on the slider -->
+        <!-- aria-live so screen reader users hear the value update without focusing the slider -->
         <span class="lightness-pct" id="fg-lightness-pct" aria-live="polite" aria-atomic="true">0%</span>
       </div>
-      <div class="lightness-slider-wrap" id="fg-slider-wrap">
-        <div class="lightness-slider-track" id="fg-slider-track" style="background: linear-gradient(to right, rgb(0, 0, 0) 0%, rgb(128, 128, 128) 50%, rgb(255, 255, 255) 100%);"></div>
+      <div class="lightness-slider-wrap">
+        <div class="lightness-slider-track" id="fg-slider-track"></div>
         <!--
           SC 4.1.2 — role=slider comes from type=range natively.
-          Accessible name from <label for="fg-lightness">.
-          aria-valuetext gives SR "0 percent" instead of bare "0".
+          Accessible name comes from <label for="fg-lightness">.
+          aria-valuetext gives screen readers "0 percent" instead of a bare "0".
           aria-valuemin/max are implicit on range but kept for older AT.
-          Keyboard: Arrow keys ±1, Home=0, End=100 — all native behaviour.
+          Keyboard: Arrow keys +/-1, Home=0, End=100 — all native behavior.
         -->
-        <input class="lightness-slider-input" type="range" id="fg-lightness" min="0" max="100" value="0" aria-valuemin="0" aria-valuemax="100" aria-label="Foreground lightness" aria-valuenow="0" aria-valuetext="0 percent">
-        <!-- Decorative thumb — hidden from AT -->
-        <div class="lightness-slider-thumb" id="fg-slider-thumb" aria-hidden="true" style="left: 0%;"></div>
+        <input class="lightness-slider-input" type="range" id="fg-lightness" min="0" max="100" value="0" aria-valuemin="0" aria-valuemax="100" aria-label="Foreground lightness" aria-valuenow="0" aria-valuetext="0 percent"/>
+        <!-- Decorative thumb, hidden from assistive technology -->
+        <div class="lightness-slider-thumb" id="fg-slider-thumb" aria-hidden="true"></div>
       </div>
     </div>
   </div>
@@ -285,18 +346,18 @@
     <div class="inputs-row">
       <div class="input-group">
         <label for="bg-hex">Hex</label>
-        <input id="bg-hex" type="text" maxlength="7" value="#FFFFFF" style="width:96px" aria-label="Background hex">
+        <input id="bg-hex" type="text" maxlength="7" value="#FFFFFF" class="hex-input" aria-label="Background hex"/>
       </div>
       <div class="input-group">
         <label for="bg-rgb">rgb</label>
-        <input id="bg-rgb" type="text" value="255, 255, 255" style="width:106px" aria-label="Background RGB">
+        <input id="bg-rgb" type="text" value="255, 255, 255" class="rgb-input" aria-label="Background RGB"/>
       </div>
       <div class="input-group">
         <span>Color</span>
         <div class="color-row">
-          <div class="swatch" id="bg-swatch" role="img" aria-label="Background color preview" style="background: rgb(255, 255, 255);"></div>
+          <div class="swatch" id="bg-swatch" role="img" aria-label="Background color preview"></div>
           <button class="eyedropper-btn" id="bg-eye" aria-label="Pick background color">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           </button>
         </div>
       </div>
@@ -307,34 +368,36 @@
         <label for="bg-lightness">Adjust Lightness</label>
         <span class="lightness-pct" id="bg-lightness-pct" aria-live="polite" aria-atomic="true">100%</span>
       </div>
-      <div class="lightness-slider-wrap" id="bg-slider-wrap">
-        <div class="lightness-slider-track" id="bg-slider-track" style="background: linear-gradient(to right, rgb(0, 0, 0) 0%, rgb(128, 128, 128) 50%, rgb(255, 255, 255) 100%);"></div>
-        <input class="lightness-slider-input" type="range" id="bg-lightness" min="0" max="100" value="100" aria-valuemin="0" aria-valuemax="100" aria-label="Background lightness" aria-valuenow="100" aria-valuetext="100 percent">
-        <div class="lightness-slider-thumb" id="bg-slider-thumb" aria-hidden="true" style="left: 100%;"></div>
+      <div class="lightness-slider-wrap">
+        <div class="lightness-slider-track" id="bg-slider-track"></div>
+        <input class="lightness-slider-input" type="range" id="bg-lightness" min="0" max="100" value="100" aria-valuemin="0" aria-valuemax="100" aria-label="Background lightness" aria-valuenow="100" aria-valuetext="100 percent"/>
+        <div class="lightness-slider-thumb" id="bg-slider-thumb" aria-hidden="true"></div>
       </div>
     </div>
   </div>
 
-  <div class="preview-box" id="preview-box" style="background: rgb(255, 255, 255);">
-    <p class="preview-small" id="preview-small" style="color: rgb(0, 0, 0);">Small sample text.</p>
-    <p class="preview-large" id="preview-large" style="color: rgb(0, 0, 0);">Large sample text.</p>
+  <div class="preview-box" id="preview-box">
+    <p class="preview-small">Small sample text.</p>
+    <p class="preview-large">Large sample text.</p>
   </div>
 
   <div class="ratio-box">
     <div class="ratio-label">Contrast Ratio</div>
-    <div class="ratio-value" id="ratio-display" aria-live="polite" aria-atomic="true">21.00:1</div>
+    <!-- Text content set only by updateRatio() at runtime; never hardcoded -->
+    <div class="ratio-value" id="ratio-display" aria-live="polite" aria-atomic="true">—</div>
   </div>
 
   <div class="criteria-row">
-    <div style="display:flex;flex-direction:column;gap:4px;flex:1;">
-      <label for="criteria-select" style="font-size:11px;font-weight:600;color:#374151;letter-spacing:0.2px;text-transform:uppercase;">SUCCESS CRITERIA</label>
-      <select id="criteria-select" aria-label="Success Criteria"><option value="0">1.4.1 a - Focus Indicator (Background)</option><option value="1">1.4.1 a - Focus Indicator (Border)</option><option value="2">1.4.1 a - Focus Indicator (Text Color)</option><option value="3">1.4.1 b - Link Contrast</option><option value="4">1.4.3 a - Regular Text</option><option value="5">1.4.3 a - Placeholder Text</option><option value="6">1.4.3 a - Link or Button Text (Hover / Focus)</option><option value="7">1.4.3 a - Regular Text (Gradient)</option><option value="8">1.4.3 b - Large Text</option><option value="9">1.4.3 b - Large Link or Button Text (Hover / Focus)</option><option value="10">1.4.3 b - Large Text (Gradient)</option><option value="11">1.4.11 a - Visual Boundary (Inner)</option><option value="12">1.4.11 a - Visual Boundary (Outer)</option><option value="13">1.4.11 a - Visual Boundary (Toggle button)</option><option value="14">1.4.11 b - Focus Indicator (Inner)</option><option value="15">1.4.11 b - Focus indicator on border (Inner and Outer)</option><option value="16">1.4.11 b - Focus Indicator (Outer)</option><option value="17">1.4.11 b - Selected State</option><option value="18">1.4.11 b - Icon on Hover / Focus</option><option value="19">1.4.11 c - Icons</option><option value="20">1.4.11 c - Graphical Object</option><option value="21">General</option></select>
+    <div class="criteria-col">
+      <label for="criteria-select" class="field-label">SUCCESS CRITERIA</label>
+      <!-- Options are populated by JS from the CRITERIA list, not hardcoded here -->
+      <select id="criteria-select" aria-label="Success Criteria"></select>
     </div>
     <div class="sr-only" aria-live="polite" id="criteria-announce"></div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-      <span style="font-size:11px;font-weight:600;color:#374151;letter-spacing:0.2px;text-transform:uppercase;">COPY</span>
+    <div class="copy-col">
+      <span class="field-label">COPY</span>
       <button class="copy-btn" id="copy-btn" aria-label="Copy to clipboard">
-        <svg id="copy-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
       </button>
     </div>
   </div>
@@ -349,177 +412,494 @@
         </tr>
       </thead>
       <tbody>
-        <tr><td class="label-cell">AA</td><td id="aa-small" class="pass-cell">PASS</td><td id="aa-large" class="pass-cell">PASS</td></tr>
-        <tr><td class="label-cell">AAA</td><td id="aaa-small" class="pass-cell">PASS</td><td id="aaa-large" class="pass-cell">PASS</td></tr>
+        <tr><td class="label-cell">AA</td><td id="aa-small">—</td><td id="aa-large">—</td></tr>
+        <tr><td class="label-cell">AAA</td><td id="aaa-small">—</td><td id="aaa-large">—</td></tr>
       </tbody>
     </table>
   </div>
 </div>
 
 <script>
-const CRITERIA = [
-  { label: "1.4.1 a - Focus Indicator (Background)", msg: "The focus indicator relies only on background color change and fails to meet the required color contrast ratio of 3:1 with the default color.", header: "Contrast Details", c1: "Background color in Focused state", c2: "Background color in Default state" },
-  { label: "1.4.1 a - Focus Indicator (Border)", msg: "The focus indicator relies only on border color change and fails to meet the required color contrast ratio of 3:1 with the default color.", header: "Contrast Details", c1: "Border color in Focused state", c2: "Border color in Default state" },
-  { label: "1.4.1 a - Focus Indicator (Text Color)", msg: "The focus indicator relies only on text color change and fails to meet the required color contrast ratio of 3:1 with the default color.", header: "Contrast Details", c1: "Text color on focused state", c2: "Text color in default state" },
-  { label: "1.4.1 b - Link Contrast", msg: "The link text for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the adjacent text color.", header: "Contrast Details", c1: "Link text color", c2: "Surrounding text color" },
-  { label: "1.4.3 a - Regular Text", msg: "The above-mentioned elements lack the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details", c1: "Foreground text color", c2: "Background color" },
-  { label: "1.4.3 a - Placeholder Text", msg: "The above-mentioned placeholder text lacks the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details", c1: "Placeholder text color", c2: "Background color" },
-  { label: "1.4.3 a - Link or Button Text (Hover / Focus)", msg: "The above-mentioned elements on focus / hover lacks the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details on hover/ on focus", c1: "Text color", c2: "Background color" },
-  { label: "1.4.3 a - Regular Text (Gradient)", msg: "The above-mentioned elements lack the required color contrast ratio of 4.5:1 with the gradient background color.", header: "Contrast Details", c1: "Foreground text color", c2: "Background (Gradient) color" },
-  { label: "1.4.3 b - Large Text", msg: "The above-mentioned elements lack the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Foreground text color", c2: "Background color" },
-  { label: "1.4.3 b - Large Link or Button Text (Hover / Focus)", msg: "The above-mentioned elements on hover/on focus lack the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details on hover/ on focus", c1: "Foreground text color", c2: "Background color" },
-  { label: "1.4.3 b - Large Text (Gradient)", msg: "The above-mentioned elements lack the required color contrast ratio of 3:1 with the gradient background.", header: "Contrast Details", c1: "Foreground text color", c2: "Background (Gradient) color" },
-  { label: "1.4.11 a - Visual Boundary (Inner)", msg: "The visual boundary of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Visual boundary color", c2: "Inner adjacent color" },
-  { label: "1.4.11 a - Visual Boundary (Outer)", msg: "The visual boundary of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Visual boundary color", c2: "Outer adjacent color" },
-  { label: "1.4.11 a - Visual Boundary (Toggle button)", msg: "The visual boundary of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: null, c1: "Toggle Circle boundary color", c2: "Outer adjacent color", slider: true },
-  { label: "1.4.11 b - Focus Indicator (Inner)", msg: "The focus indicator for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Focus indicator color", c2: "Inner adjacent color" },
-  { label: "1.4.11 b - Focus indicator on border (Inner and Outer)", msg: "The focus indicator for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the inner and outer adjacent color.", header: "Contrast Details", c1: "Focus indicator color", c2: "Inner adjacent color", innerOuter: true },
-  { label: "1.4.11 b - Focus Indicator (Outer)", msg: "The focus indicator for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Focus indicator color", c2: "Outer adjacent color" },
-  { label: "1.4.11 b - Selected State", msg: "The selected state of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the adjacent color.", header: "Contrast Details", c1: "Selected state color", c2: "Adjacent color" },
-  { label: "1.4.11 b - Icon on Hover / Focus", msg: "The above-mentioned icon on hover/ focus does not meet the required color contrast ratio of 3:1 with the background.", header: "Contrast Details on hover/ focus", c1: "Icon color", c2: "Adjacent background color" },
-  { label: "1.4.11 c - Icons", msg: "The above-mentioned icon element does not meet the required color contrast ratio of 3:1 with the background.", header: "Contrast Details", c1: "Icon color", c2: "Adjacent background color" },
-  { label: "1.4.11 c - Graphical Object", msg: "The above-mentioned graphical objects fail to meet the required 3:1 color contrast ratio with the background color.", header: "Contrast Details", c1: "Graphical object color", c2: "Adjacent color" },
-  { label: "General", msg: null, header: "Contrast Details", c1: "Foreground color", c2: "Background color" },
-];
+  /**
+   * List of WCAG success-criteria templates. Each entry describes the
+   * message text and field labels used when the "Copy" button builds a
+   * clipboard-ready issue description for that criterion.
+   *
+   * Fields:
+   *  - label: shown in the <select> dropdown
+   *  - msg:   the issue description text (null = no description needed)
+   *  - header: heading shown above the contrast detail lines
+   *  - c1/c2:  labels for the two colors being compared
+   *  - slider / innerOuter: flags for criteria that need two separate
+   *    contrast-detail blocks (kept as manual fill-in fields, since this
+   *    tool only measures one foreground/background pair at a time)
+   */
+  const CRITERIA = [
+    { label: "1.4.1 a - Focus Indicator (Background)", msg: "The focus indicator relies only on background color change and fails to meet the required color contrast ratio of 3:1 with the default color.", header: "Contrast Details", c1: "Background color in Focused state", c2: "Background color in Default state" },
+    { label: "1.4.1 a - Focus Indicator (Border)", msg: "The focus indicator relies only on border color change and fails to meet the required color contrast ratio of 3:1 with the default color.", header: "Contrast Details", c1: "Border color in Focused state", c2: "Border color in Default state" },
+    { label: "1.4.1 a - Focus Indicator (Text Color)", msg: "The focus indicator relies only on text color change and fails to meet the required color contrast ratio of 3:1 with the default color.", header: "Contrast Details", c1: "Text color on focused state", c2: "Text color in default state" },
+    { label: "1.4.1 b - Link Contrast", msg: "The link text for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the adjacent text color.", header: "Contrast Details", c1: "Link text color", c2: "Surrounding text color" },
+    { label: "1.4.3 a - Regular Text", msg: "The above-mentioned elements lack the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details", c1: "Foreground text color", c2: "Background color" },
+    { label: "1.4.3 a - Placeholder Text", msg: "The above-mentioned placeholder text lacks the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details", c1: "Placeholder text color", c2: "Background color" },
+    { label: "1.4.3 a - Link or Button Text (Hover / Focus)", msg: "The above-mentioned elements on focus / hover lacks the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details on hover/ on focus", c1: "Text color", c2: "Background color" },
+    { label: "1.4.3 a - Regular Text (Gradient)", msg: "The above-mentioned elements lack the required color contrast ratio of 4.5:1 with the gradient background color.", header: "Contrast Details", c1: "Foreground text color", c2: "Background (Gradient) color" },
+    { label: "1.4.3 b - Large Text", msg: "The above-mentioned elements lack the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Foreground text color", c2: "Background color" },
+    { label: "1.4.3 b - Large Link or Button Text (Hover / Focus)", msg: "The above-mentioned elements on hover/on focus lack the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details on hover/ on focus", c1: "Foreground text color", c2: "Background color" },
+    { label: "1.4.3 b - Large Text (Gradient)", msg: "The above-mentioned elements lack the required color contrast ratio of 3:1 with the gradient background.", header: "Contrast Details", c1: "Foreground text color", c2: "Background (Gradient) color" },
+    { label: "1.4.11 a - Visual Boundary (Inner)", msg: "The visual boundary of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Visual boundary color", c2: "Inner adjacent color" },
+    { label: "1.4.11 a - Visual Boundary (Outer)", msg: "The visual boundary of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Visual boundary color", c2: "Outer adjacent color" },
+    { label: "1.4.11 a - Visual Boundary (Toggle button)", msg: "The visual boundary of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: null, c1: "Toggle Circle boundary color", c2: "Outer adjacent color", slider: true },
+    { label: "1.4.11 b - Focus Indicator (Inner)", msg: "The focus indicator for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Focus indicator color", c2: "Inner adjacent color" },
+    { label: "1.4.11 b - Focus indicator on border (Inner and Outer)", msg: "The focus indicator for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the inner and outer adjacent color.", header: "Contrast Details", c1: "Focus indicator color", c2: "Inner adjacent color", innerOuter: true },
+    { label: "1.4.11 b - Focus Indicator (Outer)", msg: "The focus indicator for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Focus indicator color", c2: "Outer adjacent color" },
+    { label: "1.4.11 b - Selected State", msg: "The selected state of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the adjacent color.", header: "Contrast Details", c1: "Selected state color", c2: "Adjacent color" },
+    { label: "1.4.11 b - Icon on Hover / Focus", msg: "The above-mentioned icon on hover/ focus does not meet the required color contrast ratio of 3:1 with the background.", header: "Contrast Details on hover/ focus", c1: "Icon color", c2: "Adjacent background color" },
+    { label: "1.4.11 c - Icons", msg: "The above-mentioned icon element does not meet the required color contrast ratio of 3:1 with the background.", header: "Contrast Details", c1: "Icon color", c2: "Adjacent background color" },
+    { label: "1.4.11 c - Graphical Object", msg: "The above-mentioned graphical objects fail to meet the required 3:1 color contrast ratio with the background color.", header: "Contrast Details", c1: "Graphical object color", c2: "Adjacent color" },
+    { label: "General", msg: null, header: "Contrast Details", c1: "Foreground color", c2: "Background color" },
+  ];
 
-const sel = document.getElementById('criteria-select');
-CRITERIA.forEach((c,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=c.label; sel.appendChild(o); });
-sel.addEventListener('change',()=>{ document.getElementById('criteria-announce').textContent='Criteria: '+CRITERIA[sel.value].label+' selected'; });
+  const criteriaSelect = document.getElementById('criteria-select');
 
-function hexToRgb(hex){hex=hex.replace(/^#/,'');if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');const n=parseInt(hex,16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255};}
-function rgbToHex(r,g,b){return'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('').toUpperCase();}
-function isValidHex(h){return/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(h);}
-function isValidRgb(s){const p=s.split(',').map(x=>x.trim());return p.length===3&&p.every(v=>{const n=parseInt(v,10);return!isNaN(n)&&n>=0&&n<=255;});}
-function luminance({r,g,b}){const[lr,lg,lb]=[r,g,b].map(c=>{const s=c/255;return s<=0.04045?s/12.92:Math.pow((s+0.055)/1.055,2.4);});return 0.2126*lr+0.7152*lg+0.0722*lb;}
-function contrastRatio(h1,h2){const l1=luminance(hexToRgb(h1)),l2=luminance(hexToRgb(h2));const[lt,dk]=l1>l2?[l1,l2]:[l2,l1];return(lt+0.05)/(dk+0.05);}
+  // Populate the Success Criteria dropdown from the CRITERIA list above.
+  CRITERIA.forEach((criterion, index) => {
+    const option = document.createElement('option');
+    option.value = index;
+    option.textContent = criterion.label;
+    criteriaSelect.appendChild(option);
+  });
 
-// HSL <-> RGB
-function rgbToHsl(r,g,b){r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b);let h,s,l=(max+min)/2;if(max===min){h=s=0;}else{const d=max-min;s=l>0.5?d/(2-max-min):d/(max+min);switch(max){case r:h=((g-b)/d+(g<b?6:0))/6;break;case g:h=((b-r)/d+2)/6;break;case b:h=((r-g)/d+4)/6;break;}}return{h:h*360,s:s*100,l:l*100};}
-function hslToRgb(h,s,l){h/=360;s/=100;l/=100;let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};const q=l<0.5?l*(1+s):l+s-l*s,p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);}return{r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)};}
+  // Announce the selected criterion to screen reader users via the
+  // visually-hidden live region, since <select> changes aren't always
+  // announced consistently across browser/assistive-tech combinations.
+  criteriaSelect.addEventListener('change', () => {
+    const selected = CRITERIA[criteriaSelect.value];
+    document.getElementById('criteria-announce').textContent = 'Criteria: ' + selected.label + ' selected';
+  });
 
-let fgHsl={h:0,s:0,l:0}, bgHsl={h:0,s:0,l:100};
-let fgHex='#000000', bgHex='#FFFFFF';
+  // ── Hex / RGB / luminance / contrast helpers ──────────────────────────
 
-function updateSliderUI(prefix, hsl){
-  const h=hsl.h, s=hsl.s, l=Math.round(hsl.l);
-  const track  = document.getElementById(prefix+'-slider-track');
-  const thumb  = document.getElementById(prefix+'-slider-thumb');
-  const pct    = document.getElementById(prefix+'-lightness-pct');
-  const input  = document.getElementById(prefix+'-lightness');
-  // Gradient: black → hue mid-point → white, full width
-  const midColor = `hsl(${h},${s}%,50%)`;
-  track.style.background = `linear-gradient(to right, #000 0%, ${midColor} 50%, #fff 100%)`;
+  /** Converts a hex color string (#RGB or #RRGGBB) to an {r, g, b} object. */
+  function hexToRgb(hex) {
+    hex = hex.replace(/^#/, '');
+    if (hex.length === 3) {
+      hex = hex.split('').map(char => char + char).join('');
+    }
+    const num = parseInt(hex, 16);
+    return {
+      r: (num >> 16) & 255,
+      g: (num >> 8) & 255,
+      b: num & 255
+    };
+  }
 
-  const cl = Math.min(100, Math.max(0, l));
+  /**
+   * Converts individual r, g, b values (0-255) into a "#RRGGBB" hex string.
+   * Values are clamped to the valid 0-255 range before conversion.
+   */
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b]
+      .map(value => Math.max(0, Math.min(255, value)).toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase();
+  }
 
-  // Simple percentage left — overflow:hidden on the wrap clips the thumb at edges
-  thumb.style.left = cl + '%';
+  /** Returns true if the string is a valid 3- or 6-digit hex color. */
+  function isValidHex(hex) {
+    return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(hex);
+  }
 
-  // Update native input
-  input.value = cl;
-
-  // SC 4.1.2 — keep aria attributes in sync for keyboard / AT
-  input.setAttribute('aria-valuenow',  cl);
-  input.setAttribute('aria-valuetext', cl + ' percent');
-
-  // Visible label (aria-live — SR users hear it on every change)
-  pct.textContent = cl + '%';
-}
-
-function syncFg(hex, fromSlider){
-  fgHex = hex.toUpperCase();
-  const {r,g,b} = hexToRgb(fgHex);
-  if(!fromSlider){ fgHsl = rgbToHsl(r,g,b); }
-  document.getElementById('fg-hex').value  = fgHex;
-  document.getElementById('fg-rgb').value  = `${r}, ${g}, ${b}`;
-  document.getElementById('fg-swatch').style.background = fgHex;
-  updateSliderUI('fg', fgHsl);
-  updatePreview(); updateRatio();
-}
-function syncBg(hex, fromSlider){
-  bgHex = hex.toUpperCase();
-  const {r,g,b} = hexToRgb(bgHex);
-  if(!fromSlider){ bgHsl = rgbToHsl(r,g,b); }
-  document.getElementById('bg-hex').value  = bgHex;
-  document.getElementById('bg-rgb').value  = `${r}, ${g}, ${b}`;
-  document.getElementById('bg-swatch').style.background = bgHex;
-  updateSliderUI('bg', bgHsl);
-  updatePreview(); updateRatio();
-}
-
-function updatePreview(){
-  document.getElementById('preview-box').style.background = isValidHex(bgHex) ? bgHex : '#fff';
-  document.getElementById('preview-small').style.color    = isValidHex(fgHex) ? fgHex : '#000';
-  document.getElementById('preview-large').style.color    = isValidHex(fgHex) ? fgHex : '#000';
-}
-function updateRatio(){
-  if(isValidHex(fgHex) && isValidHex(bgHex)){
-    const r = contrastRatio(fgHex, bgHex);
-    const display = (Math.floor(r*100)/100).toFixed(2);
-    document.getElementById('ratio-display').textContent = display+':1';
-    setCell('aa-small', r>=4.5); setCell('aa-large', r>=3);
-    setCell('aaa-small', r>=7);  setCell('aaa-large', r>=4.5);
-  } else {
-    document.getElementById('ratio-display').textContent = '—';
-    ['aa-small','aa-large','aaa-small','aaa-large'].forEach(id=>{
-      const td=document.getElementById(id); td.className=''; td.textContent='—';
+  /** Returns true if the string is a valid "r, g, b" triplet (each 0-255). */
+  function isValidRgb(rgbString) {
+    const parts = rgbString.split(',').map(part => part.trim());
+    return parts.length === 3 && parts.every(value => {
+      const num = parseInt(value, 10);
+      return !isNaN(num) && num >= 0 && num <= 255;
     });
   }
-}
-function setCell(id, pass){
-  const td = document.getElementById(id);
-  td.className   = pass ? 'pass-cell' : 'fail-cell';
-  td.textContent = pass ? 'PASS' : 'FAIL';
-}
 
-// Lightness slider — input event fires on both mouse drag and keyboard arrow keys
-document.getElementById('fg-lightness').addEventListener('input', e=>{
-  fgHsl.l = parseInt(e.target.value, 10);
-  const {r,g,b} = hslToRgb(fgHsl.h, fgHsl.s, fgHsl.l);
-  syncFg(rgbToHex(r,g,b), true);
-});
-document.getElementById('bg-lightness').addEventListener('input', e=>{
-  bgHsl.l = parseInt(e.target.value, 10);
-  const {r,g,b} = hslToRgb(bgHsl.h, bgHsl.s, bgHsl.l);
-  syncBg(rgbToHex(r,g,b), true);
-});
-
-// Hex / RGB text inputs
-document.getElementById('fg-hex').addEventListener('input',e=>{let v=e.target.value.toUpperCase();if(!v.startsWith('#'))v='#'+v;e.target.value=v;if(isValidHex(v))syncFg(v,false);});
-document.getElementById('bg-hex').addEventListener('input',e=>{let v=e.target.value.toUpperCase();if(!v.startsWith('#'))v='#'+v;e.target.value=v;if(isValidHex(v))syncBg(v,false);});
-document.getElementById('fg-rgb').addEventListener('input',e=>{if(isValidRgb(e.target.value)){const[r,g,b]=e.target.value.split(',').map(s=>parseInt(s.trim(),10));syncFg(rgbToHex(r,g,b),false);}});
-document.getElementById('bg-rgb').addEventListener('input',e=>{if(isValidRgb(e.target.value)){const[r,g,b]=e.target.value.split(',').map(s=>parseInt(s.trim(),10));syncBg(rgbToHex(r,g,b),false);}});
-
-// Eyedropper
-async function pick(fn){if(!window.EyeDropper){alert('Use Chrome 95+ or Edge 95+.');return;}try{const r=await new EyeDropper().open();fn(r.sRGBHex);}catch(_){}}
-document.getElementById('fg-eye').addEventListener('click',()=>pick(h=>syncFg(h,false)));
-document.getElementById('bg-eye').addEventListener('click',()=>pick(h=>syncBg(h,false)));
-
-// Copy button
-document.getElementById('copy-btn').addEventListener('click',()=>{
-  const c = CRITERIA[sel.value];
-  const ratio = document.getElementById('ratio-display').textContent;
-  let txt;
-  if(c.slider){
-    txt=`${c.msg}\n\nContrast Details\n${c.c1}: ${fgHex}\n${c.c2}: ${bgHex}\nContrast Ratio: ${ratio}\n\nContrast Details\nToggle Rectangular boundary color: \nOuter adjacent color: \nContrast Ratio: `;
-  } else if(c.innerOuter){
-    txt=`${c.msg}\n\nContrast Details\nFocus indicator color: ${fgHex}\nInner adjacent color: ${bgHex}\nContrast Ratio: ${ratio}\n\nContrast Details\nFocus indicator color: \nOuter adjacent color: \nContrast Ratio: `;
-  } else {
-    txt=c.msg?`${c.msg}\n\n${c.header}\n${c.c1}: ${fgHex}\n${c.c2}: ${bgHex}\nContrast Ratio: ${ratio}`:`${c.header}\n${c.c1}: ${fgHex}\n${c.c2}: ${bgHex}\nContrast Ratio: ${ratio}`;
+  /**
+   * Calculates relative luminance per the WCAG formula, used as the basis
+   * for the contrast ratio calculation below.
+   * https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
+   */
+  function luminance({ r, g, b }) {
+    const [linearR, linearG, linearB] = [r, g, b].map(channel => {
+      const srgb = channel / 255;
+      return srgb <= 0.04045 ? srgb / 12.92 : Math.pow((srgb + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * linearR + 0.7152 * linearG + 0.0722 * linearB;
   }
-  navigator.clipboard.writeText(txt).catch(()=>{const ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);});
-  const btn=document.getElementById('copy-btn');
-  btn.classList.add('copied');
-  btn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
-  setTimeout(()=>{btn.classList.remove('copied');btn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;},2000);
-});
 
-if('serviceWorker' in navigator){const sw=`const C='cca-v2',F=['./','/index.html','/logo.png'];self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(F))));self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'}))).catch(()=>{});}
+  /**
+   * Calculates the WCAG contrast ratio between two hex colors.
+   * Returns the raw floating-point ratio (not rounded) so callers can
+   * decide how to format/round it for display vs. pass/fail comparisons.
+   */
+  function contrastRatio(hex1, hex2) {
+    const lum1 = luminance(hexToRgb(hex1));
+    const lum2 = luminance(hexToRgb(hex2));
+    const [lighter, darker] = lum1 > lum2 ? [lum1, lum2] : [lum2, lum1];
+    return (lighter + 0.05) / (darker + 0.05);
+  }
 
-syncFg('#000000', false);
-syncBg('#FFFFFF', false);
+  // ── HSL conversion helpers (used by the lightness sliders) ───────────
 
+  /**
+   * Converts RGB (0-255 each) to HSL, returned as:
+   *  h: hue in degrees (0-360)
+   *  s: saturation as a percentage (0-100)
+   *  l: lightness as a percentage (0-100)
+   * This lets the lightness slider adjust only lightness while preserving
+   * the color's hue and saturation.
+   */
+  function convertRgbToHsl(red, green, blue) {
+    const r = red / 255, g = green / 255, b = blue / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const lightness = (max + min) / 2;
+
+    let hue = 0;
+    let saturation = 0;
+
+    if (max !== min) {
+      const delta = max - min;
+      saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+
+      switch (max) {
+        case r: hue = ((g - b) / delta + (g < b ? 6 : 0)) / 6; break;
+        case g: hue = ((b - r) / delta + 2) / 6; break;
+        case b: hue = ((r - g) / delta + 4) / 6; break;
+      }
+    }
+
+    return { h: hue * 360, s: saturation * 100, l: lightness * 100 };
+  }
+
+  /**
+   * Converts HSL (hue in degrees, saturation/lightness as percentages)
+   * back to RGB (0-255 each). Used when the lightness slider changes to
+   * recompute the resulting color while keeping hue/saturation fixed.
+   */
+  function convertHslToRgb(hueDegrees, saturationPct, lightnessPct) {
+    const h = hueDegrees / 360;
+    const s = saturationPct / 100;
+    const l = lightnessPct / 100;
+
+    let r, g, b;
+
+    if (s === 0) {
+      // Achromatic (gray) — no hue/saturation contribution.
+      r = g = b = l;
+    } else {
+      const hueToRgbChannel = (p, q, t) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+
+      r = hueToRgbChannel(p, q, h + 1 / 3);
+      g = hueToRgbChannel(p, q, h);
+      b = hueToRgbChannel(p, q, h - 1 / 3);
+    }
+
+    return {
+      r: Math.round(r * 255),
+      g: Math.round(g * 255),
+      b: Math.round(b * 255)
+    };
+  }
+
+  // ── State ──────────────────────────────────────────────────────────
+  // Current foreground/background colors, kept as module-level state so
+  // every render function (preview, ratio, table, sliders) can read the
+  // latest value. HSL is tracked separately from hex so the lightness
+  // slider can preserve hue/saturation while only changing lightness.
+  let foregroundHex = '#000000';
+  let backgroundHex = '#FFFFFF';
+  let foregroundHsl = { h: 0, s: 0, l: 0 };
+  let backgroundHsl = { h: 0, s: 0, l: 100 };
+
+  /**
+   * Updates the lightness slider's visuals (gradient track, thumb
+   * position, percentage label, and ARIA attributes) for the given
+   * "fg" or "bg" prefix, based on its current HSL value.
+   */
+  function updateLightnessSliderUI(prefix, hsl) {
+    const roundedLightness = Math.min(100, Math.max(0, Math.round(hsl.l)));
+
+    const track = document.getElementById(prefix + '-slider-track');
+    const thumb = document.getElementById(prefix + '-slider-thumb');
+    const percentLabel = document.getElementById(prefix + '-lightness-pct');
+    const rangeInput = document.getElementById(prefix + '-lightness');
+
+    // Gradient goes black -> current hue/saturation at 50% lightness -> white,
+    // so the slider always shows the full lightness range for this hue.
+    const midpointColor = `hsl(${hsl.h}, ${hsl.s}%, 50%)`;
+    track.style.setProperty('--track-gradient', `linear-gradient(to right, #000 0%, ${midpointColor} 50%, #fff 100%)`);
+
+    // Thumb position is data-driven, so it's set via a custom property
+    // rather than an inline "left" style.
+    thumb.style.setProperty('--thumb-left', roundedLightness + '%');
+
+    // Keep the native range input in sync so keyboard interaction works.
+    rangeInput.value = roundedLightness;
+
+    // SC 4.1.2 — keep ARIA attributes in sync for keyboard / assistive tech.
+    rangeInput.setAttribute('aria-valuenow', roundedLightness);
+    rangeInput.setAttribute('aria-valuetext', roundedLightness + ' percent');
+
+    // Visible label — aria-live means screen reader users hear it on every change.
+    percentLabel.textContent = roundedLightness + '%';
+  }
+
+  /**
+   * Updates the foreground color state and every UI element that depends
+   * on it (hex input, rgb input, swatch, lightness slider, preview, ratio).
+   *
+   * @param {string} hex - the new foreground color as a hex string
+   * @param {boolean} fromSlider - true when this call originated from the
+   *   lightness slider itself, in which case we must NOT recompute HSL
+   *   from the hex (that would lose the slider's in-progress hue/saturation
+   *   precision to rounding).
+   */
+  function syncForegroundColor(hex, fromSlider) {
+    foregroundHex = hex.toUpperCase();
+    const { r, g, b } = hexToRgb(foregroundHex);
+
+    if (!fromSlider) {
+      foregroundHsl = convertRgbToHsl(r, g, b);
+    }
+
+    document.getElementById('fg-hex').value = foregroundHex;
+    document.getElementById('fg-rgb').value = `${r}, ${g}, ${b}`;
+    document.getElementById('fg-swatch').style.setProperty('--swatch-bg', foregroundHex);
+
+    updateLightnessSliderUI('fg', foregroundHsl);
+    updatePreview();
+    updateRatio();
+  }
+
+  /**
+   * Updates the background color state and every UI element that depends
+   * on it (hex input, rgb input, swatch, lightness slider, preview, ratio).
+   * See syncForegroundColor() above for the meaning of `fromSlider`.
+   */
+  function syncBackgroundColor(hex, fromSlider) {
+    backgroundHex = hex.toUpperCase();
+    const { r, g, b } = hexToRgb(backgroundHex);
+
+    if (!fromSlider) {
+      backgroundHsl = convertRgbToHsl(r, g, b);
+    }
+
+    document.getElementById('bg-hex').value = backgroundHex;
+    document.getElementById('bg-rgb').value = `${r}, ${g}, ${b}`;
+    document.getElementById('bg-swatch').style.setProperty('--swatch-bg', backgroundHex);
+
+    updateLightnessSliderUI('bg', backgroundHsl);
+    updatePreview();
+    updateRatio();
+  }
+
+  /**
+   * Applies the current foreground/background colors to the sample text
+   * preview box, using CSS custom properties (--preview-bg, --preview-fg)
+   * so the coloring rules stay defined in CSS rather than as inline styles.
+   */
+  function updatePreview() {
+    const previewBox = document.getElementById('preview-box');
+    previewBox.style.setProperty('--preview-bg', isValidHex(backgroundHex) ? backgroundHex : '#ffffff');
+    previewBox.style.setProperty('--preview-fg', isValidHex(foregroundHex) ? foregroundHex : '#000000');
+  }
+
+  /**
+   * Recomputes the contrast ratio for the current foreground/background
+   * pair and updates:
+   *  - the large ratio display (e.g. "4.53:1")
+   *  - each pass/fail cell in the AA/AAA table
+   * If either color is invalid, resets the display to a placeholder state.
+   */
+  function updateRatio() {
+    if (isValidHex(foregroundHex) && isValidHex(backgroundHex)) {
+      const ratio = contrastRatio(foregroundHex, backgroundHex);
+      const displayValue = (Math.floor(ratio * 100) / 100).toFixed(2);
+
+      document.getElementById('ratio-display').textContent = displayValue + ':1';
+
+      setCell('aa-small', ratio >= 4.5);
+      setCell('aa-large', ratio >= 3);
+      setCell('aaa-small', ratio >= 7);
+      setCell('aaa-large', ratio >= 4.5);
+    } else {
+      document.getElementById('ratio-display').textContent = '—';
+      ['aa-small', 'aa-large', 'aaa-small', 'aaa-large'].forEach(id => {
+        const cell = document.getElementById(id);
+        cell.className = '';
+        cell.textContent = '—';
+      });
+    }
+  }
+
+  /** Sets a single results-table cell to a PASS or FAIL state. */
+  function setCell(id, pass) {
+    const cell = document.getElementById(id);
+    cell.className = pass ? 'pass-cell' : 'fail-cell';
+    cell.textContent = pass ? 'PASS' : 'FAIL';
+  }
+
+  // ── Event listeners ───────────────────────────────────────────────
+
+  // Lightness sliders — the "input" event fires on both mouse drag and
+  // keyboard arrow keys, so this single listener covers both interactions.
+  document.getElementById('fg-lightness').addEventListener('input', event => {
+    foregroundHsl.l = parseInt(event.target.value, 10);
+    const { r, g, b } = convertHslToRgb(foregroundHsl.h, foregroundHsl.s, foregroundHsl.l);
+    syncForegroundColor(rgbToHex(r, g, b), true);
+  });
+
+  document.getElementById('bg-lightness').addEventListener('input', event => {
+    backgroundHsl.l = parseInt(event.target.value, 10);
+    const { r, g, b } = convertHslToRgb(backgroundHsl.h, backgroundHsl.s, backgroundHsl.l);
+    syncBackgroundColor(rgbToHex(r, g, b), true);
+  });
+
+  // Hex input listeners: normalize to uppercase "#RRGGBB" as the user types.
+  document.getElementById('fg-hex').addEventListener('input', event => {
+    let value = event.target.value.toUpperCase();
+    if (!value.startsWith('#')) value = '#' + value;
+    event.target.value = value;
+    if (isValidHex(value)) syncForegroundColor(value, false);
+  });
+
+  document.getElementById('bg-hex').addEventListener('input', event => {
+    let value = event.target.value.toUpperCase();
+    if (!value.startsWith('#')) value = '#' + value;
+    event.target.value = value;
+    if (isValidHex(value)) syncBackgroundColor(value, false);
+  });
+
+  // RGB input listeners: parse "r, g, b" text and convert to hex.
+  document.getElementById('fg-rgb').addEventListener('input', event => {
+    if (isValidRgb(event.target.value)) {
+      const [r, g, b] = event.target.value.split(',').map(part => parseInt(part.trim(), 10));
+      syncForegroundColor(rgbToHex(r, g, b), false);
+    }
+  });
+
+  document.getElementById('bg-rgb').addEventListener('input', event => {
+    if (isValidRgb(event.target.value)) {
+      const [r, g, b] = event.target.value.split(',').map(part => parseInt(part.trim(), 10));
+      syncBackgroundColor(rgbToHex(r, g, b), false);
+    }
+  });
+
+  /**
+   * Opens the browser's native EyeDropper API (Chrome/Edge 95+) and passes
+   * the picked color's hex value into the given setter function.
+   */
+  async function pickColorWithEyedropper(applyColorFn) {
+    if (!window.EyeDropper) {
+      alert('Use Chrome 95+ or Edge 95+.');
+      return;
+    }
+    try {
+      const result = await new EyeDropper().open();
+      applyColorFn(result.sRGBHex);
+    } catch (_) {
+      // User cancelled the picker — no action needed.
+    }
+  }
+
+  document.getElementById('fg-eye').addEventListener('click', () => pickColorWithEyedropper(hex => syncForegroundColor(hex, false)));
+  document.getElementById('bg-eye').addEventListener('click', () => pickColorWithEyedropper(hex => syncBackgroundColor(hex, false)));
+
+  /**
+   * Builds the clipboard text for the currently selected success criterion,
+   * combining its message template with the live foreground/background hex
+   * values and computed contrast ratio, then copies it to the clipboard.
+   */
+  document.getElementById('copy-btn').addEventListener('click', () => {
+    const criterion = CRITERIA[criteriaSelect.value];
+    const ratioText = document.getElementById('ratio-display').textContent;
+    let clipboardText;
+
+    if (criterion.slider) {
+      // Criteria needing a second, manually-filled contrast detail block.
+      clipboardText =
+        `${criterion.msg}\n\nContrast Details\n${criterion.c1}: ${foregroundHex}\n${criterion.c2}: ${backgroundHex}\nContrast Ratio: ${ratioText}\n\n` +
+        `Contrast Details\nToggle Rectangular boundary color: \nOuter adjacent color: \nContrast Ratio: `;
+    } else if (criterion.innerOuter) {
+      clipboardText =
+        `${criterion.msg}\n\nContrast Details\nFocus indicator color: ${foregroundHex}\nInner adjacent color: ${backgroundHex}\nContrast Ratio: ${ratioText}\n\n` +
+        `Contrast Details\nFocus indicator color: \nOuter adjacent color: \nContrast Ratio: `;
+    } else {
+      clipboardText = criterion.msg
+        ? `${criterion.msg}\n\n${criterion.header}\n${criterion.c1}: ${foregroundHex}\n${criterion.c2}: ${backgroundHex}\nContrast Ratio: ${ratioText}`
+        : `${criterion.header}\n${criterion.c1}: ${foregroundHex}\n${criterion.c2}: ${backgroundHex}\nContrast Ratio: ${ratioText}`;
+    }
+
+    copyToClipboard(clipboardText);
+    showCopiedFeedback();
+  });
+
+  /** Copies text to the clipboard, with a fallback for older browsers. */
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).catch(() => {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    });
+  }
+
+  /** Briefly swaps the copy button icon to a checkmark to confirm success. */
+  function showCopiedFeedback() {
+    const copyBtn = document.getElementById('copy-btn');
+    copyBtn.classList.add('copied');
+    copyBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+    setTimeout(() => {
+      copyBtn.classList.remove('copied');
+      copyBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+    }, 2000);
+  }
+
+  /**
+   * Registers a minimal service worker (created from an in-memory Blob, so
+   * no separate sw.js file is needed) to cache the app shell for offline/
+   * installable PWA use.
+   */
+  if ('serviceWorker' in navigator) {
+    const serviceWorkerSource = `
+      const CACHE_NAME = 'cca-v2';
+      const FILES_TO_CACHE = ['./', '/index.html', '/logo.png'];
+
+      self.addEventListener('install', event => {
+        event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(FILES_TO_CACHE)));
+      });
+
+      self.addEventListener('fetch', event => {
+        event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)));
+      });
+    `;
+    navigator.serviceWorker
+      .register(URL.createObjectURL(new Blob([serviceWorkerSource], { type: 'application/javascript' })))
+      .catch(() => {});
+  }
+
+  // Initialize with default black-on-white values on page load.
+  syncForegroundColor('#000000', false);
+  syncBackgroundColor('#FFFFFF', false);
 </script>
-
-
-<div id="ext-a11yhelper--element-tooltip"></div></body></html>
+</body>
+</html>
